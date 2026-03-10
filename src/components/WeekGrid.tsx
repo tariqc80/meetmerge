@@ -1,8 +1,14 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useMemo, useRef, useState } from "react";
 import type { TimeBlock } from "@/types";
-import { getDateRange, groupDatesByWeek, formatDateLabel, formatHour, GRID_HOURS } from "@/lib/dates";
+import {
+  getDateRange,
+  groupDatesByWeek,
+  formatDateLabel,
+  formatHour,
+  GRID_HOURS,
+} from "@/lib/dates";
 
 interface WeekGridProps {
   startDate: string;
@@ -42,7 +48,13 @@ function isInDragRect(drag: DragState, dateIdx: number, hourIdx: number): boolea
   return dateIdx >= minDate && dateIdx <= maxDate && hourIdx >= minHour && hourIdx <= maxHour;
 }
 
-export function WeekGrid({ startDate, endDate, selectedBlocks, onToggleBlock, onBulkUpdate }: WeekGridProps) {
+export function WeekGrid({
+  startDate,
+  endDate,
+  selectedBlocks,
+  onToggleBlock,
+  onBulkUpdate,
+}: WeekGridProps) {
   const dates = useMemo(() => getDateRange(startDate, endDate), [startDate, endDate]);
   const weeks = useMemo(() => groupDatesByWeek(dates), [dates]);
   const [drag, setDrag] = useState<DragState | null>(null);
@@ -67,15 +79,12 @@ export function WeekGrid({ startDate, endDate, selectedBlocks, onToggleBlock, on
     [selectedBlocks],
   );
 
-  const handleMouseEnter = useCallback(
-    (weekIdx: number, dateIdx: number, hourIdx: number) => {
-      if (!dragRef.current || dragRef.current.weekIdx !== weekIdx) return;
-      const updated = { ...dragRef.current, currentDateIdx: dateIdx, currentHourIdx: hourIdx };
-      dragRef.current = updated;
-      setDrag(updated);
-    },
-    [],
-  );
+  const handleMouseEnter = useCallback((weekIdx: number, dateIdx: number, hourIdx: number) => {
+    if (!dragRef.current || dragRef.current.weekIdx !== weekIdx) return;
+    const updated = { ...dragRef.current, currentDateIdx: dateIdx, currentHourIdx: hourIdx };
+    dragRef.current = updated;
+    setDrag(updated);
+  }, []);
 
   const handleMouseUp = useCallback(
     (weekDates: string[]) => {
@@ -148,11 +157,8 @@ export function WeekGrid({ startDate, endDate, selectedBlocks, onToggleBlock, on
 
             {/* Time rows */}
             {GRID_HOURS.map((hour, hourIdx) => (
-              <>
-                <div
-                  key={`label-${hour}`}
-                  className="bg-white dark:bg-gray-900 p-2 text-xs text-gray-500 text-right pr-3"
-                >
+              <Fragment key={`row-${hour}`}>
+                <div className="bg-white dark:bg-gray-900 p-2 text-xs text-gray-500 text-right pr-3">
                   {formatHour(hour)}
                 </div>
                 {weekDates.map((date, dateIdx) => {
@@ -177,7 +183,7 @@ export function WeekGrid({ startDate, endDate, selectedBlocks, onToggleBlock, on
                     />
                   );
                 })}
-              </>
+              </Fragment>
             ))}
           </div>
         </div>

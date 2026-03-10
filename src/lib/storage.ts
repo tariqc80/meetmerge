@@ -25,14 +25,31 @@ export async function createGroup(group: Group): Promise<void> {
   }
 }
 
-/** Add a participant to an existing group. */
+/**
+ * Add a participant to an existing group.
+ * If a participant with the same email already exists, update them instead
+ * of creating a duplicate entry.
+ */
 export async function addParticipant(groupId: string, participant: Participant): Promise<void> {
   try {
     const group = await loadGroup(groupId);
     if (!group) return;
-    await updateDoc(doc(db, COLLECTION, groupId), {
-      participants: [...group.participants, participant],
-    });
+
+    const existingIdx = group.participants.findIndex(
+      (p) => p.email.toLowerCase() === participant.email.toLowerCase(),
+    );
+
+    let participants: Participant[];
+    if (existingIdx >= 0) {
+      // Update existing participant, preserving their original ID
+      participants = group.participants.map((p, i) =>
+        i === existingIdx ? { ...participant, id: p.id } : p,
+      );
+    } else {
+      participants = [...group.participants, participant];
+    }
+
+    await updateDoc(doc(db, COLLECTION, groupId), { participants });
   } catch (err) {
     console.error("Failed to add participant:", err);
   }

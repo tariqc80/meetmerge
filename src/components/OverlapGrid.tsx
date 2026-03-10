@@ -1,8 +1,14 @@
 "use client";
 
-import { useMemo } from "react";
+import { Fragment, useMemo } from "react";
 import type { OverlapBlock, TimeBlock } from "@/types";
-import { getDateRange, groupDatesByWeek, formatDateLabel, formatHour, GRID_HOURS } from "@/lib/dates";
+import {
+  getDateRange,
+  groupDatesByWeek,
+  formatDateLabel,
+  formatHour,
+  GRID_HOURS,
+} from "@/lib/dates";
 
 interface OverlapGridProps {
   startDate: string;
@@ -26,25 +32,30 @@ function isCurrentUser(blocks: TimeBlock[] | undefined, date: string, hour: numb
  * Returns an inline style with a computed background color.
  * Gradient: empty (white) -> gray -> blue-gray -> light green at full overlap.
  */
-function intensityStyle(count: number, total: number, isMine: boolean): React.CSSProperties {
+/**
+ * Returns an inline style with a computed background color.
+ * Green is applied to blocks with the highest overlap count (maxCount),
+ * not only when all participants overlap.
+ */
+function intensityStyle(count: number, maxCount: number, isMine: boolean): React.CSSProperties {
   // Empty cell
   if (count === 0 && !isMine) return {};
 
   // Only the current user, no one else
   if (count === 0 && isMine) return { backgroundColor: "rgba(148, 163, 184, 0.15)" };
 
-  if (total <= 1) {
-    return { backgroundColor: "rgba(148, 163, 184, 0.15)" };
+  if (maxCount <= 1) {
+    // Only one person max — show green for their blocks
+    return { backgroundColor: "rgba(74, 222, 128, 0.85)" };
   }
 
-  // Max overlap — the only blocks that get green
-  if (count >= total) {
+  // Highest overlap gets green
+  if (count >= maxCount) {
     return { backgroundColor: "rgba(74, 222, 128, 0.85)" }; // green-400
   }
 
-  // Everything else: slate -> blue-gray/teal gradient
-  // t goes from 0 (1 person) to ~1 (near-max overlap), but never reaches green
-  const t = (count - 1) / (total - 1);
+  // Everything else: slate -> blue-teal gradient scaled to maxCount
+  const t = (count - 1) / (maxCount - 1);
 
   // Interpolate from slate-200 (226,232,240) to a blue-teal (120,180,200)
   const r = Math.round(226 + (120 - 226) * t);
@@ -55,9 +66,16 @@ function intensityStyle(count: number, total: number, isMine: boolean): React.CS
   return { backgroundColor: `rgba(${r}, ${g}, ${b}, ${alpha})` };
 }
 
-export function OverlapGrid({ startDate, endDate, blocks, totalParticipants, currentUserBlocks }: OverlapGridProps) {
+export function OverlapGrid({
+  startDate,
+  endDate,
+  blocks,
+  totalParticipants,
+  currentUserBlocks,
+}: OverlapGridProps) {
   const dates = useMemo(() => getDateRange(startDate, endDate), [startDate, endDate]);
   const weeks = useMemo(() => groupDatesByWeek(dates), [dates]);
+  const maxCount = useMemo(() => Math.max(0, ...blocks.map((b) => b.count)), [blocks]);
 
   return (
     <div className="space-y-8">
@@ -80,18 +98,15 @@ export function OverlapGrid({ startDate, endDate, blocks, totalParticipants, cur
 
             {/* Time rows */}
             {GRID_HOURS.map((hour) => (
-              <>
-                <div
-                  key={`label-${hour}`}
-                  className="bg-white dark:bg-gray-900 p-2 text-xs text-gray-500 text-right pr-3"
-                >
+              <Fragment key={`row-${hour}`}>
+                <div className="bg-white dark:bg-gray-900 p-2 text-xs text-gray-500 text-right pr-3">
                   {formatHour(hour)}
                 </div>
                 {weekDates.map((date) => {
                   const block = getBlockAt(blocks, date, hour);
                   const count = block?.count ?? 0;
                   const isMine = isCurrentUser(currentUserBlocks, date, hour);
-                  const style = intensityStyle(count, totalParticipants, isMine);
+                  const style = intensityStyle(count, maxCount, isMine);
 
                   return (
                     <div
@@ -110,7 +125,7 @@ export function OverlapGrid({ startDate, endDate, blocks, totalParticipants, cur
                     </div>
                   );
                 })}
-              </>
+              </Fragment>
             ))}
           </div>
         </div>
@@ -120,12 +135,24 @@ export function OverlapGrid({ startDate, endDate, blocks, totalParticipants, cur
       <div className="flex flex-wrap items-center gap-4 text-xs text-gray-600 dark:text-gray-400">
         <div className="flex items-center gap-1.5">
           <div className="flex">
-            <div className="h-4 w-4 rounded-l border border-gray-200" style={{ backgroundColor: "rgba(226,232,240,0.15)" }} />
-            <div className="h-4 w-4 border-y border-gray-200" style={{ backgroundColor: "rgba(173,206,220,0.42)" }} />
-            <div className="h-4 w-4 border-y border-gray-200" style={{ backgroundColor: "rgba(120,180,200,0.85)" }} />
-            <div className="h-4 w-4 rounded-r border border-gray-200" style={{ backgroundColor: "rgba(74,222,128,0.85)" }} />
+            <div
+              className="h-4 w-4 rounded-l border border-gray-200"
+              style={{ backgroundColor: "rgba(226,232,240,0.15)" }}
+            />
+            <div
+              className="h-4 w-4 border-y border-gray-200"
+              style={{ backgroundColor: "rgba(173,206,220,0.42)" }}
+            />
+            <div
+              className="h-4 w-4 border-y border-gray-200"
+              style={{ backgroundColor: "rgba(120,180,200,0.85)" }}
+            />
+            <div
+              className="h-4 w-4 rounded-r border border-gray-200"
+              style={{ backgroundColor: "rgba(74,222,128,0.85)" }}
+            />
           </div>
-          <span>Less overlap → more → everyone</span>
+          <span>Less overlap → more → best overlap</span>
         </div>
       </div>
     </div>

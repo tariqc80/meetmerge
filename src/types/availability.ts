@@ -12,6 +12,7 @@ export interface Participant {
   id: string;
   name: string;
   email: string;
+  timezone: string; // IANA timezone identifier, e.g. "America/New_York"
   blocks: TimeBlock[];
   submittedAt: string; // ISO date string
 }

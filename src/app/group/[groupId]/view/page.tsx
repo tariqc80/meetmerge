@@ -8,6 +8,7 @@ import { useGroup } from "@/lib/useGroup";
 import { getSession } from "@/lib/session";
 import { computeOverlap } from "@/lib/overlap";
 import { removeParticipant, updateParticipant } from "@/lib/storage";
+import { getBrowserTimezone, convertBlocks, formatTimezone } from "@/lib/timezone";
 import type { TimeBlock } from "@/types";
 
 export default function GroupViewPage() {
@@ -15,17 +16,20 @@ export default function GroupViewPage() {
   const { group, loading } = useGroup(params.groupId);
   const session = useMemo(() => getSession(params.groupId), [params.groupId]);
   const isOwner = !!(session && group && group.ownerId === session.participantId);
+  const viewerTimezone = useMemo(() => getBrowserTimezone(), []);
 
   const overlapBlocks = useMemo(
-    () => (group ? computeOverlap(group.participants) : []),
-    [group],
+    () => (group ? computeOverlap(group.participants, viewerTimezone) : []),
+    [group, viewerTimezone],
   );
 
   const currentUserBlocks = useMemo(() => {
     if (!group || !session) return undefined;
     const me = group.participants.find((p) => p.id === session.participantId);
-    return me?.blocks;
-  }, [group, session]);
+    if (!me) return undefined;
+    // Convert current user's blocks to viewer timezone for consistent highlighting
+    return me.timezone ? convertBlocks(me.blocks, me.timezone, viewerTimezone) : me.blocks;
+  }, [group, session, viewerTimezone]);
 
   // Admin editing state
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -98,9 +102,15 @@ export default function GroupViewPage() {
                         ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 font-semibold"
                         : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
                     }`}
+                    title={p.timezone ? p.timezone.replace(/_/g, " ") : undefined}
                   >
                     {p.name}
                     {session && p.id === session.participantId ? " (you)" : ""}
+                    {p.timezone && (
+                      <span className="ml-1 text-xs opacity-60">
+                        {p.timezone.split("/").pop()?.replace(/_/g, " ")}
+                      </span>
+                    )}
                   </span>
                   {isOwner && p.id !== session!.participantId && (
                     <div className="flex gap-1">
@@ -131,8 +141,7 @@ export default function GroupViewPage() {
           {editingId && (
             <div className="rounded-lg border border-yellow-300 dark:border-yellow-700 bg-yellow-50 dark:bg-yellow-950 p-4 space-y-3">
               <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
-                Editing availability for{" "}
-                {group.participants.find((p) => p.id === editingId)?.name}
+                Editing availability for {group.participants.find((p) => p.id === editingId)?.name}
               </p>
               <p className="text-xs text-yellow-600 dark:text-yellow-400">
                 {editBlocks.length} blocks selected
@@ -158,6 +167,10 @@ export default function GroupViewPage() {
               </div>
             </div>
           )}
+
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Times shown in your timezone: {formatTimezone(viewerTimezone)}
+          </p>
 
           <OverlapGrid
             startDate={group.startDate}

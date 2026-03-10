@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { v4 as uuidv4 } from "uuid";
 import { WeekGrid } from "@/components/WeekGrid";
@@ -8,6 +8,12 @@ import { SubmissionCounter } from "@/components/SubmissionCounter";
 import { addParticipant, updateParticipant } from "@/lib/storage";
 import { useGroup } from "@/lib/useGroup";
 import { getSession, saveSession } from "@/lib/session";
+import {
+  detectTimezoneByIP,
+  getBrowserTimezone,
+  getTimezoneOptions,
+  formatTimezone,
+} from "@/lib/timezone";
 import type { TimeBlock } from "@/types";
 
 export default function AvailabilityPage() {
@@ -17,7 +23,8 @@ export default function AvailabilityPage() {
   // Check if this participant already has a session for this group
   const session = useMemo(() => getSession(params.groupId), [params.groupId]);
   const existingParticipant = useMemo(
-    () => (session && group ? group.participants.find((p) => p.id === session.participantId) : null),
+    () =>
+      session && group ? group.participants.find((p) => p.id === session.participantId) : null,
     [session, group],
   );
   const isReturning = !!existingParticipant;
@@ -25,6 +32,13 @@ export default function AvailabilityPage() {
   // Join form state — pre-fill from session if owner visiting for first time
   const [name, setName] = useState(session?.name ?? "");
   const [email, setEmail] = useState(session?.email ?? "");
+  const [timezone, setTimezone] = useState(getBrowserTimezone());
+  const timezoneOptions = useMemo(() => getTimezoneOptions(), []);
+
+  // Auto-detect timezone from IP on mount
+  useEffect(() => {
+    detectTimezoneByIP().then(setTimezone);
+  }, []);
 
   // Grid state — initialize with existing blocks if returning
   const [selectedBlocks, setSelectedBlocks] = useState<TimeBlock[]>(
@@ -53,9 +67,7 @@ export default function AvailabilityPage() {
 
   const handleBulkUpdate = useCallback((toAdd: TimeBlock[], toRemove: TimeBlock[]) => {
     setSelectedBlocks((prev) => {
-      let next = prev.filter(
-        (b) => !toRemove.some((r) => r.date === b.date && r.hour === b.hour),
-      );
+      let next = prev.filter((b) => !toRemove.some((r) => r.date === b.date && r.hour === b.hour));
       for (const block of toAdd) {
         if (!next.some((b) => b.date === block.date && b.hour === block.hour)) {
           next = [...next, block];
@@ -75,6 +87,7 @@ export default function AvailabilityPage() {
       id: participantId,
       name: name.trim(),
       email: email.trim(),
+      timezone,
       blocks: selectedBlocks,
       submittedAt: new Date().toISOString(),
     });
@@ -137,6 +150,22 @@ export default function AvailabilityPage() {
             onChange={(e) => setEmail(e.target.value)}
             className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
+          <div>
+            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+              Your timezone
+            </label>
+            <select
+              value={timezone}
+              onChange={(e) => setTimezone(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {timezoneOptions.map((tz) => (
+                <option key={tz} value={tz}>
+                  {formatTimezone(tz)}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         <p className="text-xs text-gray-400 dark:text-gray-500">

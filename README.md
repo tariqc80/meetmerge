@@ -4,7 +4,7 @@ MeetMerge is a client-side webapp that allows groups to coordinate availability 
 
 ## Architecture
 
-All client-side to keep things simple. Uses localStorage for data persistence. No server-side processing required. Can integrate with 3rd party APIs for calendar syncing (e.g., Google Calendar).
+All client-side to keep things simple. Uses FireBase FireStore for data persistence. No server-side processing required. 
 
 ## Getting Started
 

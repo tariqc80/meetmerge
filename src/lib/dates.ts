@@ -1,5 +1,5 @@
-/** Hours shown in the grid (7 AM to 10 PM) */
-export const GRID_HOURS = Array.from({ length: 16 }, (_, i) => i + 7);
+/** Hours shown in the grid (6 AM to 10 PM) */
+export const GRID_HOURS = Array.from({ length: 17 }, (_, i) => i + 6);
 
 /**
  * Generate an array of date strings (YYYY-MM-DD) from startDate to endDate inclusive.
